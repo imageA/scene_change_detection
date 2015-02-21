@@ -263,6 +263,8 @@ public:
                                      OutputArray descriptors,
                                      bool useProvidedKeypoints=false ) const = 0;
 
+    CV_WRAP void compute( const Mat& image, CV_OUT CV_IN_OUT std::vector<KeyPoint>& keypoints, CV_OUT Mat& descriptors ) const;
+
     // Create feature detector and descriptor extractor by name.
     CV_WRAP static Ptr<Feature2D> create( const string& name );
 };
@@ -564,10 +566,10 @@ protected:
 
 //! detects corners using FAST algorithm by E. Rosten
 CV_EXPORTS void FAST( InputArray image, CV_OUT vector<KeyPoint>& keypoints,
-                      int threshold, bool nonmaxSupression=true );
+                      int threshold, bool nonmaxSuppression=true );
 
 CV_EXPORTS void FASTX( InputArray image, CV_OUT vector<KeyPoint>& keypoints,
-                      int threshold, bool nonmaxSupression, int type );
+                      int threshold, bool nonmaxSuppression, int type );
 
 class CV_EXPORTS_W FastFeatureDetector : public FeatureDetector
 {
@@ -589,11 +591,11 @@ protected:
 };
 
 
-class CV_EXPORTS GFTTDetector : public FeatureDetector
+class CV_EXPORTS_W GFTTDetector : public FeatureDetector
 {
 public:
-    GFTTDetector( int maxCorners=1000, double qualityLevel=0.01, double minDistance=1,
-                  int blockSize=3, bool useHarrisDetector=false, double k=0.04 );
+    CV_WRAP GFTTDetector( int maxCorners=1000, double qualityLevel=0.01, double minDistance=1,
+                          int blockSize=3, bool useHarrisDetector=false, double k=0.04 );
     AlgorithmInfo* info() const;
 
 protected:
@@ -1015,7 +1017,7 @@ struct CV_EXPORTS Hamming
 
 typedef Hamming HammingLUT;
 
-template<int cellsize> struct CV_EXPORTS HammingMultilevel
+template<int cellsize> struct HammingMultilevel
 {
     enum { normType = NORM_HAMMING + (cellsize>1) };
     typedef unsigned char ValueType;
@@ -1526,17 +1528,17 @@ CV_EXPORTS void evaluateGenericDescriptorMatcher( const Mat& img1, const Mat& im
 /*
  * Abstract base class for training of a 'bag of visual words' vocabulary from a set of descriptors
  */
-class CV_EXPORTS BOWTrainer
+class CV_EXPORTS_W BOWTrainer
 {
 public:
     BOWTrainer();
     virtual ~BOWTrainer();
 
-    void add( const Mat& descriptors );
-    const vector<Mat>& getDescriptors() const;
-    int descripotorsCount() const;
+    CV_WRAP void add( const Mat& descriptors );
+    CV_WRAP const vector<Mat>& getDescriptors() const;
+    CV_WRAP int descripotorsCount() const;
 
-    virtual void clear();
+    CV_WRAP virtual void clear();
 
     /*
      * Train visual words vocabulary, that is cluster training descriptors and
@@ -1545,8 +1547,8 @@ public:
      *
      * descriptors      Training descriptors computed on images keypoints.
      */
-    virtual Mat cluster() const = 0;
-    virtual Mat cluster( const Mat& descriptors ) const = 0;
+    CV_WRAP virtual Mat cluster() const = 0;
+    CV_WRAP virtual Mat cluster( const Mat& descriptors ) const = 0;
 
 protected:
     vector<Mat> descriptors;
@@ -1556,16 +1558,16 @@ protected:
 /*
  * This is BOWTrainer using cv::kmeans to get vocabulary.
  */
-class CV_EXPORTS BOWKMeansTrainer : public BOWTrainer
+class CV_EXPORTS_W BOWKMeansTrainer : public BOWTrainer
 {
 public:
-    BOWKMeansTrainer( int clusterCount, const TermCriteria& termcrit=TermCriteria(),
+    CV_WRAP BOWKMeansTrainer( int clusterCount, const TermCriteria& termcrit=TermCriteria(),
                       int attempts=3, int flags=KMEANS_PP_CENTERS );
     virtual ~BOWKMeansTrainer();
 
     // Returns trained vocabulary (i.e. cluster centers).
-    virtual Mat cluster() const;
-    virtual Mat cluster( const Mat& descriptors ) const;
+    CV_WRAP virtual Mat cluster() const;
+    CV_WRAP virtual Mat cluster( const Mat& descriptors ) const;
 
 protected:
 
@@ -1578,21 +1580,24 @@ protected:
 /*
  * Class to compute image descriptor using bag of visual words.
  */
-class CV_EXPORTS BOWImgDescriptorExtractor
+class CV_EXPORTS_W BOWImgDescriptorExtractor
 {
 public:
-    BOWImgDescriptorExtractor( const Ptr<DescriptorExtractor>& dextractor,
+    CV_WRAP BOWImgDescriptorExtractor( const Ptr<DescriptorExtractor>& dextractor,
                                const Ptr<DescriptorMatcher>& dmatcher );
     virtual ~BOWImgDescriptorExtractor();
 
-    void setVocabulary( const Mat& vocabulary );
-    const Mat& getVocabulary() const;
+    CV_WRAP void setVocabulary( const Mat& vocabulary );
+    CV_WRAP const Mat& getVocabulary() const;
     void compute( const Mat& image, vector<KeyPoint>& keypoints, Mat& imgDescriptor,
                   vector<vector<int> >* pointIdxsOfClusters=0, Mat* descriptors=0 );
     // compute() is not constant because DescriptorMatcher::match is not constant
 
-    int descriptorSize() const;
-    int descriptorType() const;
+    CV_WRAP_AS(compute) void compute2( const Mat& image, vector<KeyPoint>& keypoints, CV_OUT Mat& imgDescriptor )
+    { compute(image,keypoints,imgDescriptor); }
+
+    CV_WRAP int descriptorSize() const;
+    CV_WRAP int descriptorType() const;
 
 protected:
     Mat vocabulary;

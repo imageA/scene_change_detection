@@ -28,7 +28,7 @@
 //     derived from this software without specific prior written permission.
 //
 // This software is provided by the copyright holders and contributors "as is" and
-// any express or bpied warranties, including, but not limited to, the bpied
+// any express or implied warranties, including, but not limited to, the implied
 // warranties of merchantability and fitness for a particular purpose are disclaimed.
 // In no event shall the Intel Corporation or contributors be liable for any direct,
 // indirect, incidental, special, exemplary, or consequential damages
@@ -120,11 +120,8 @@ namespace cv { namespace gpu { namespace device
                 return dst;
             }
 
-            __device__ __forceinline__ RGB2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-
-            __device__ __forceinline__ RGB2RGB(const RGB2RGB& other_)
-                :unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2RGB() {}
+            __host__ __device__ __forceinline__ RGB2RGB(const RGB2RGB&) {}
         };
 
         template <> struct RGB2RGB<uchar, 4, 4, 2> : unary_function<uint, uint>
@@ -141,8 +138,8 @@ namespace cv { namespace gpu { namespace device
                 return dst;
             }
 
-            __device__ __forceinline__ RGB2RGB():unary_function<uint, uint>(){}
-            __device__ __forceinline__ RGB2RGB(const RGB2RGB& other_):unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ RGB2RGB() {}
+            __host__ __device__ __forceinline__ RGB2RGB(const RGB2RGB&) {}
         };
     }
 
@@ -163,16 +160,12 @@ namespace cv { namespace gpu { namespace device
         template <int green_bits, int bidx> struct RGB2RGB5x5Converter;
         template<int bidx> struct RGB2RGB5x5Converter<6, bidx>
         {
-            static __device__ __forceinline__ ushort cvt(const uchar3& src)
+            template <typename T>
+            static __device__ __forceinline__ ushort cvt(const T& src)
             {
-                return (ushort)(((&src.x)[bidx] >> 3) | ((src.y & ~3) << 3) | (((&src.x)[bidx^2] & ~7) << 8));
-            }
-
-            static __device__ __forceinline__ ushort cvt(uint src)
-            {
-                uint b = 0xffu & (src >> (bidx * 8));
-                uint g = 0xffu & (src >> 8);
-                uint r = 0xffu & (src >> ((bidx ^ 2) * 8));
+                uint b = bidx == 0 ? src.x : src.z;
+                uint g = src.y;
+                uint r = bidx == 0 ? src.z : src.x;
                 return (ushort)((b >> 3) | ((g & ~3) << 3) | ((r & ~7) << 8));
             }
         };
@@ -181,41 +174,44 @@ namespace cv { namespace gpu { namespace device
         {
             static __device__ __forceinline__ ushort cvt(const uchar3& src)
             {
-                return (ushort)(((&src.x)[bidx] >> 3) | ((src.y & ~7) << 2) | (((&src.x)[bidx^2] & ~7) << 7));
+                uint b = bidx == 0 ? src.x : src.z;
+                uint g = src.y;
+                uint r = bidx == 0 ? src.z : src.x;
+                return (ushort)((b >> 3) | ((g & ~7) << 2) | ((r & ~7) << 7));
             }
 
-            static __device__ __forceinline__ ushort cvt(uint src)
+            static __device__ __forceinline__ ushort cvt(const uchar4& src)
             {
-                uint b = 0xffu & (src >> (bidx * 8));
-                uint g = 0xffu & (src >> 8);
-                uint r = 0xffu & (src >> ((bidx ^ 2) * 8));
-                uint a = 0xffu & (src >> 24);
+                uint b = bidx == 0 ? src.x : src.z;
+                uint g = src.y;
+                uint r = bidx == 0 ? src.z : src.x;
+                uint a = src.w;
                 return (ushort)((b >> 3) | ((g & ~7) << 2) | ((r & ~7) << 7) | (a * 0x8000));
             }
         };
 
         template<int scn, int bidx, int green_bits> struct RGB2RGB5x5;
 
-        template<int bidx, int green_bits> struct RGB2RGB5x5<3, bidx,green_bits> : unary_function<uchar3, ushort>
+        template<int bidx, int green_bits> struct RGB2RGB5x5<3, bidx, green_bits> : unary_function<uchar3, ushort>
         {
             __device__ __forceinline__ ushort operator()(const uchar3& src) const
             {
                 return RGB2RGB5x5Converter<green_bits, bidx>::cvt(src);
             }
 
-            __device__ __forceinline__ RGB2RGB5x5():unary_function<uchar3, ushort>(){}
-            __device__ __forceinline__ RGB2RGB5x5(const RGB2RGB5x5& other_):unary_function<uchar3, ushort>(){}
+            __host__ __device__ __forceinline__ RGB2RGB5x5() {}
+            __host__ __device__ __forceinline__ RGB2RGB5x5(const RGB2RGB5x5&) {}
         };
 
-        template<int bidx, int green_bits> struct RGB2RGB5x5<4, bidx,green_bits> : unary_function<uint, ushort>
+        template<int bidx, int green_bits> struct RGB2RGB5x5<4, bidx, green_bits> : unary_function<uchar4, ushort>
         {
-            __device__ __forceinline__ ushort operator()(uint src) const
+            __device__ __forceinline__ ushort operator()(const uchar4& src) const
             {
                 return RGB2RGB5x5Converter<green_bits, bidx>::cvt(src);
             }
 
-            __device__ __forceinline__ RGB2RGB5x5():unary_function<uint, ushort>(){}
-            __device__ __forceinline__ RGB2RGB5x5(const RGB2RGB5x5& other_):unary_function<uint, ushort>(){}
+            __host__ __device__ __forceinline__ RGB2RGB5x5() {}
+            __host__ __device__ __forceinline__ RGB2RGB5x5(const RGB2RGB5x5&) {}
         };
     }
 
@@ -282,8 +278,8 @@ namespace cv { namespace gpu { namespace device
                 RGB5x52RGBConverter<green_bits, bidx>::cvt(src, dst);
                 return dst;
             }
-            __device__ __forceinline__ RGB5x52RGB():unary_function<ushort, uchar3>(){}
-            __device__ __forceinline__ RGB5x52RGB(const RGB5x52RGB& other_):unary_function<ushort, uchar3>(){}
+            __host__ __device__ __forceinline__ RGB5x52RGB() {}
+            __host__ __device__ __forceinline__ RGB5x52RGB(const RGB5x52RGB&) {}
 
         };
 
@@ -295,8 +291,8 @@ namespace cv { namespace gpu { namespace device
                 RGB5x52RGBConverter<green_bits, bidx>::cvt(src, dst);
                 return dst;
             }
-            __device__ __forceinline__ RGB5x52RGB():unary_function<ushort, uint>(){}
-            __device__ __forceinline__ RGB5x52RGB(const RGB5x52RGB& other_):unary_function<ushort, uint>(){}
+            __host__ __device__ __forceinline__ RGB5x52RGB() {}
+            __host__ __device__ __forceinline__ RGB5x52RGB(const RGB5x52RGB&) {}
         };
     }
 
@@ -325,9 +321,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Gray2RGB():unary_function<T, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ Gray2RGB(const Gray2RGB& other_)
-                : unary_function<T, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ Gray2RGB() {}
+            __host__ __device__ __forceinline__ Gray2RGB(const Gray2RGB&) {}
         };
 
         template <> struct Gray2RGB<uchar, 4> : unary_function<uchar, uint>
@@ -342,8 +337,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Gray2RGB():unary_function<uchar, uint>(){}
-            __device__ __forceinline__ Gray2RGB(const Gray2RGB& other_):unary_function<uchar, uint>(){}
+            __host__ __device__ __forceinline__ Gray2RGB() {}
+            __host__ __device__ __forceinline__ Gray2RGB(const Gray2RGB&) {}
         };
     }
 
@@ -384,8 +379,8 @@ namespace cv { namespace gpu { namespace device
                 return Gray2RGB5x5Converter<green_bits>::cvt(src);
             }
 
-            __device__ __forceinline__ Gray2RGB5x5():unary_function<uchar, ushort>(){}
-            __device__ __forceinline__ Gray2RGB5x5(const Gray2RGB5x5& other_):unary_function<uchar, ushort>(){}
+            __host__ __device__ __forceinline__ Gray2RGB5x5() {}
+            __host__ __device__ __forceinline__ Gray2RGB5x5(const Gray2RGB5x5&) {}
         };
     }
 
@@ -426,8 +421,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB5x52GrayConverter<green_bits>::cvt(src);
             }
-            __device__ __forceinline__ RGB5x52Gray() : unary_function<ushort, uchar>(){}
-            __device__ __forceinline__ RGB5x52Gray(const RGB5x52Gray& other_) : unary_function<ushort, uchar>(){}
+            __host__ __device__ __forceinline__ RGB5x52Gray() {}
+            __host__ __device__ __forceinline__ RGB5x52Gray(const RGB5x52Gray&) {}
         };
     }
 
@@ -467,9 +462,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB2GrayConvert<bidx>(&src.x);
             }
-            __device__ __forceinline__ RGB2Gray() : unary_function<typename TypeVec<T, scn>::vec_type, T>(){}
-            __device__ __forceinline__ RGB2Gray(const RGB2Gray& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, T>(){}
+            __host__ __device__ __forceinline__ RGB2Gray() {}
+            __host__ __device__ __forceinline__ RGB2Gray(const RGB2Gray&) {}
         };
 
         template <int bidx> struct RGB2Gray<uchar, 4, bidx> : unary_function<uint, uchar>
@@ -478,8 +472,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB2GrayConvert<bidx>(src);
             }
-            __device__ __forceinline__ RGB2Gray() : unary_function<uint, uchar>(){}
-            __device__ __forceinline__ RGB2Gray(const RGB2Gray& other_) : unary_function<uint, uchar>(){}
+            __host__ __device__ __forceinline__ RGB2Gray() {}
+            __host__ __device__ __forceinline__ RGB2Gray(const RGB2Gray&) {}
         };
     }
 
@@ -529,10 +523,8 @@ namespace cv { namespace gpu { namespace device
                 RGB2YUVConvert<bidx>(&src.x, dst);
                 return dst;
             }
-            __device__ __forceinline__ RGB2YUV()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ RGB2YUV(const RGB2YUV& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2YUV() {}
+            __host__ __device__ __forceinline__ RGB2YUV(const RGB2YUV&) {}
         };
     }
 
@@ -609,10 +601,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ YUV2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ YUV2RGB(const YUV2RGB& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ YUV2RGB() {}
+            __host__ __device__ __forceinline__ YUV2RGB(const YUV2RGB&) {}
         };
 
         template <int bidx> struct YUV2RGB<uchar, 4, 4, bidx> : unary_function<uint, uint>
@@ -621,8 +611,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return YUV2RGBConvert<bidx>(src);
             }
-            __device__ __forceinline__ YUV2RGB() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ YUV2RGB(const YUV2RGB& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ YUV2RGB() {}
+            __host__ __device__ __forceinline__ YUV2RGB(const YUV2RGB&) {}
         };
     }
 
@@ -689,10 +679,8 @@ namespace cv { namespace gpu { namespace device
                 RGB2YCrCbConvert<bidx>(&src.x, dst);
                 return dst;
             }
-            __device__ __forceinline__ RGB2YCrCb()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ RGB2YCrCb(const RGB2YCrCb& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2YCrCb() {}
+            __host__ __device__ __forceinline__ RGB2YCrCb(const RGB2YCrCb&) {}
         };
 
         template <int bidx> struct RGB2YCrCb<uchar, 4, 4, bidx> : unary_function<uint, uint>
@@ -702,8 +690,8 @@ namespace cv { namespace gpu { namespace device
                 return RGB2YCrCbConvert<bidx>(src);
             }
 
-            __device__ __forceinline__ RGB2YCrCb() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ RGB2YCrCb(const RGB2YCrCb& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ RGB2YCrCb() {}
+            __host__ __device__ __forceinline__ RGB2YCrCb(const RGB2YCrCb&) {}
         };
     }
 
@@ -771,10 +759,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ YCrCb2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ YCrCb2RGB(const YCrCb2RGB& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ YCrCb2RGB() {}
+            __host__ __device__ __forceinline__ YCrCb2RGB(const YCrCb2RGB&) {}
         };
 
         template <int bidx> struct YCrCb2RGB<uchar, 4, 4, bidx> : unary_function<uint, uint>
@@ -783,8 +769,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return YCrCb2RGBConvert<bidx>(src);
             }
-            __device__ __forceinline__ YCrCb2RGB() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ YCrCb2RGB(const YCrCb2RGB& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ YCrCb2RGB() {}
+            __host__ __device__ __forceinline__ YCrCb2RGB(const YCrCb2RGB&) {}
         };
     }
 
@@ -849,10 +835,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2XYZ()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ RGB2XYZ(const RGB2XYZ& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2XYZ() {}
+            __host__ __device__ __forceinline__ RGB2XYZ(const RGB2XYZ&) {}
         };
 
         template <int bidx> struct RGB2XYZ<uchar, 4, 4, bidx> : unary_function<uint, uint>
@@ -861,8 +845,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB2XYZConvert<bidx>(src);
             }
-            __device__ __forceinline__ RGB2XYZ() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ RGB2XYZ(const RGB2XYZ& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ RGB2XYZ() {}
+            __host__ __device__ __forceinline__ RGB2XYZ(const RGB2XYZ&) {}
         };
     }
 
@@ -926,10 +910,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ XYZ2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ XYZ2RGB(const XYZ2RGB& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ XYZ2RGB() {}
+            __host__ __device__ __forceinline__ XYZ2RGB(const XYZ2RGB&) {}
         };
 
         template <int bidx> struct XYZ2RGB<uchar, 4, 4, bidx> : unary_function<uint, uint>
@@ -938,8 +920,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return XYZ2RGBConvert<bidx>(src);
             }
-            __device__ __forceinline__ XYZ2RGB() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ XYZ2RGB(const XYZ2RGB& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ XYZ2RGB() {}
+            __host__ __device__ __forceinline__ XYZ2RGB(const XYZ2RGB&) {}
         };
     }
 
@@ -1066,10 +1048,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2HSV()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ RGB2HSV(const RGB2HSV& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2HSV() {}
+            __host__ __device__ __forceinline__ RGB2HSV(const RGB2HSV&) {}
         };
 
         template <int bidx, int hr> struct RGB2HSV<uchar, 4, 4, bidx, hr> : unary_function<uint, uint>
@@ -1078,8 +1058,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB2HSVConvert<bidx, hr>(src);
             }
-            __device__ __forceinline__ RGB2HSV():unary_function<uint, uint>(){}
-            __device__ __forceinline__ RGB2HSV(const RGB2HSV& other_):unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ RGB2HSV() {}
+            __host__ __device__ __forceinline__ RGB2HSV(const RGB2HSV&) {}
         };
     }
 
@@ -1208,10 +1188,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ HSV2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ HSV2RGB(const HSV2RGB& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ HSV2RGB() {}
+            __host__ __device__ __forceinline__ HSV2RGB(const HSV2RGB&) {}
         };
 
         template <int bidx, int hr> struct HSV2RGB<uchar, 4, 4, bidx, hr> : unary_function<uint, uint>
@@ -1220,8 +1198,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return HSV2RGBConvert<bidx, hr>(src);
             }
-            __device__ __forceinline__ HSV2RGB():unary_function<uint, uint>(){}
-            __device__ __forceinline__ HSV2RGB(const HSV2RGB& other_):unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ HSV2RGB() {}
+            __host__ __device__ __forceinline__ HSV2RGB(const HSV2RGB&) {}
         };
     }
 
@@ -1343,10 +1321,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2HLS()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ RGB2HLS(const RGB2HLS& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ RGB2HLS() {}
+            __host__ __device__ __forceinline__ RGB2HLS(const RGB2HLS&) {}
         };
 
         template <int bidx, int hr> struct RGB2HLS<uchar, 4, 4, bidx, hr> : unary_function<uint, uint>
@@ -1355,8 +1331,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return RGB2HLSConvert<bidx, hr>(src);
             }
-            __device__ __forceinline__ RGB2HLS() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ RGB2HLS(const RGB2HLS& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ RGB2HLS() {}
+            __host__ __device__ __forceinline__ RGB2HLS(const RGB2HLS&) {}
         };
     }
 
@@ -1485,10 +1461,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ HLS2RGB()
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
-            __device__ __forceinline__ HLS2RGB(const HLS2RGB& other_)
-                : unary_function<typename TypeVec<T, scn>::vec_type, typename TypeVec<T, dcn>::vec_type>(){}
+            __host__ __device__ __forceinline__ HLS2RGB() {}
+            __host__ __device__ __forceinline__ HLS2RGB(const HLS2RGB&) {}
         };
 
         template <int bidx, int hr> struct HLS2RGB<uchar, 4, 4, bidx, hr> : unary_function<uint, uint>
@@ -1497,8 +1471,8 @@ namespace cv { namespace gpu { namespace device
             {
                 return HLS2RGBConvert<bidx, hr>(src);
             }
-            __device__ __forceinline__ HLS2RGB() : unary_function<uint, uint>(){}
-            __device__ __forceinline__ HLS2RGB(const HLS2RGB& other_) : unary_function<uint, uint>(){}
+            __host__ __device__ __forceinline__ HLS2RGB() {}
+            __host__ __device__ __forceinline__ HLS2RGB(const HLS2RGB&) {}
         };
     }
 
@@ -1651,8 +1625,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2Lab() {}
-            __device__ __forceinline__ RGB2Lab(const RGB2Lab& other_) {}
+            __host__ __device__ __forceinline__ RGB2Lab() {}
+            __host__ __device__ __forceinline__ RGB2Lab(const RGB2Lab&) {}
         };
         template <int scn, int dcn, bool srgb, int blueIdx>
         struct RGB2Lab<float, scn, dcn, srgb, blueIdx>
@@ -1666,8 +1640,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2Lab() {}
-            __device__ __forceinline__ RGB2Lab(const RGB2Lab& other_) {}
+            __host__ __device__ __forceinline__ RGB2Lab() {}
+            __host__ __device__ __forceinline__ RGB2Lab(const RGB2Lab&) {}
         };
     }
 
@@ -1764,8 +1738,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Lab2RGB() {}
-            __device__ __forceinline__ Lab2RGB(const Lab2RGB& other_) {}
+            __host__ __device__ __forceinline__ Lab2RGB() {}
+            __host__ __device__ __forceinline__ Lab2RGB(const Lab2RGB&) {}
         };
         template <int scn, int dcn, bool srgb, int blueIdx>
         struct Lab2RGB<float, scn, dcn, srgb, blueIdx>
@@ -1779,8 +1753,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Lab2RGB() {}
-            __device__ __forceinline__ Lab2RGB(const Lab2RGB& other_) {}
+            __host__ __device__ __forceinline__ Lab2RGB() {}
+            __host__ __device__ __forceinline__ Lab2RGB(const Lab2RGB&) {}
         };
     }
 
@@ -1847,7 +1821,7 @@ namespace cv { namespace gpu { namespace device
 
             dst.x = saturate_cast<uchar>(dstf.x * 2.55f);
             dst.y = saturate_cast<uchar>(dstf.y * 0.72033898305084743f + 96.525423728813564f);
-            dst.z = saturate_cast<uchar>(dstf.z * 0.99609375f + 139.453125f);
+            dst.z = saturate_cast<uchar>(dstf.z * 0.9732824427480916f + 136.259541984732824f);
         }
 
         template <typename T, int scn, int dcn, bool srgb, int blueIdx> struct RGB2Luv;
@@ -1863,8 +1837,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2Luv() {}
-            __device__ __forceinline__ RGB2Luv(const RGB2Luv& other_) {}
+            __host__ __device__ __forceinline__ RGB2Luv() {}
+            __host__ __device__ __forceinline__ RGB2Luv(const RGB2Luv&) {}
         };
         template <int scn, int dcn, bool srgb, int blueIdx>
         struct RGB2Luv<float, scn, dcn, srgb, blueIdx>
@@ -1878,8 +1852,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ RGB2Luv() {}
-            __device__ __forceinline__ RGB2Luv(const RGB2Luv& other_) {}
+            __host__ __device__ __forceinline__ RGB2Luv() {}
+            __host__ __device__ __forceinline__ RGB2Luv(const RGB2Luv&) {}
         };
     }
 
@@ -1941,7 +1915,7 @@ namespace cv { namespace gpu { namespace device
 
             srcf.x = src.x * (100.f / 255.f);
             srcf.y = src.y * 1.388235294117647f - 134.f;
-            srcf.z = src.z * 1.003921568627451f - 140.f;
+            srcf.z = src.z * 1.027450980392157f - 140.f;
 
             Luv2RGBConvert_f<srgb, blueIdx>(srcf, dstf);
 
@@ -1964,8 +1938,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Luv2RGB() {}
-            __device__ __forceinline__ Luv2RGB(const Luv2RGB& other_) {}
+            __host__ __device__ __forceinline__ Luv2RGB() {}
+            __host__ __device__ __forceinline__ Luv2RGB(const Luv2RGB&) {}
         };
         template <int scn, int dcn, bool srgb, int blueIdx>
         struct Luv2RGB<float, scn, dcn, srgb, blueIdx>
@@ -1979,8 +1953,8 @@ namespace cv { namespace gpu { namespace device
 
                 return dst;
             }
-            __device__ __forceinline__ Luv2RGB() {}
-            __device__ __forceinline__ Luv2RGB(const Luv2RGB& other_) {}
+            __host__ __device__ __forceinline__ Luv2RGB() {}
+            __host__ __device__ __forceinline__ Luv2RGB(const Luv2RGB&) {}
         };
     }
 
