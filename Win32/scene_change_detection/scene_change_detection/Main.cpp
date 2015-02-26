@@ -5,6 +5,8 @@
 #include <iostream>
 #include <stdio.h>
 
+#include "..\\..\\..\\src\ocl_histogram.hpp"
+
 using namespace std;
 using namespace cv;
 
@@ -54,8 +56,14 @@ void camera_test(){
     return ;
 }
 
+
+#define SAMPLE_IMG "lena.jpg"
+
+
 int main( int argc, const char** argv )
 {
-	camera_test();
+	OclHist oclHist(SAMPLE_IMG);
+	oclHist.printf();
+
 	return 0;
 }
