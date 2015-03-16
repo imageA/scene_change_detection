@@ -9,14 +9,18 @@ class SceneChangeDetector{
 private:
 	cv::ocl::oclMat omatInput_;
 	cv::ocl::oclMat omatInputGray_;
-
+	
+	cv::ocl::oclMat omatCornerHarris_;
 	cv::Mat matResult_;
+	cv::Mat matCornerHarris_;
+
+	
 public:
 	SceneChangeDetector();
-	
-	int doWork(cv::Mat input);
 
+	int doWork(cv::Mat& input);
 	cv::Mat& resultMat() { return matResult_; }
+
 
 };
 
